@@ -209,6 +209,3 @@ __marimo__/
 data/7z/
 .DS_Store
 **/.DS_Store
-
-find . -name .DS_Store -print0 | xargs -0 git rm --cached
-git commit -m "Remove .DS_Store files"
