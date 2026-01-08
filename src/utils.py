@@ -1,5 +1,7 @@
 import numpy as np
-import xarray as xr        
+import xarray as xr     
+import ot   
+from ot.gromov import gromov_wasserstein, entropic_gromov_wasserstein, emd
 
 # JSON -> Tensor (3D array: Moment, Players, (x,y) Coords)
 def event_to_tensor(event, max_frames=None):
@@ -46,5 +48,55 @@ def build_dataset(game, max_frames=150):
         }
     )
 
+class DistanceProfile:
+    def __init__(self, source, target):
+        self.source = source
+        self.target = target
 
+    def get_pairwise_dist(self, cloud, ord):
+            # cloud shape: (N, D)
+            # Using broadcasting: (N, 1, D) - (1, N, D) -> (N, N, D)
+            diff = cloud[:, np.newaxis, :] - cloud[np.newaxis, :, :]
+            # Calculate norm along the last axis (the coordinates)
+            return np.linalg.norm(diff, ord=ord, axis=-1)
+
+    def compute_LN_matrix(self,source,target,ord):
+        """
+        Compute the L-norm distance matrix
+        """
+        dist_source = self.get_pairwise_dist(source, ord)
+        dist_target = self.get_pairwise_dist(target, ord)
+
+        return dist_source, dist_target
+
+    def compute_W_matrix(X, Y, gw = gromov_wasserstein):
+        """
+        Computes W(i,j) for all i ∈ [n], j ∈ [m] as defined in the equation.
+
+        X: array of shape (n, d)
+        Y: array of shape (m, d)
+
+        Returns: W matrix of shape (n, m)
+        """
+        n, _ = X.shape
+        m, _ = Y.shape
+
+        # Precompute all intra-set distances ||X_i - X_ℓ|| and ||Y_j - Y_ℓ||
+        X_dists = np.linalg.norm(X[:, None, :] - X[None, :, :], axis=2)  # shape (n, n)
+        Y_dists = np.linalg.norm(Y[:, None, :] - Y[None, :, :], axis=2)  # shape (m, m)
+
+        W = np.zeros((n, m))
+
+        # Calculate D(i, j) which is the Gromov-Wasserstein distance between the distributions of distances
+        for i in range(n):
+            Xi_distances = X_dists[i]  # vector of length n
+            for j in range(m):
+                Yj_distances = Y_dists[j]  # vector of length m
+
+                # Gromov-Wasserstein between the two empirical distributions
+                W[i, j] = gw(Xi_distances, Yj_distances)
+
+        map_matrix = emd(np.ones(n) / n, np.ones(m) / m, W)
+
+        return W, map_matrix
 
