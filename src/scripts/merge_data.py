@@ -5,9 +5,10 @@ from pathlib import Path
 # ======================
 # CONFIG
 # ======================
-GAME_JSON = Path("data/json/0021500622.json")   # already-extracted SportVU JSON
+file_name = "0021500622"
+GAME_JSON = Path("data/json/{file_name}.json")   # already-extracted SportVU JSON
 PBP_CSV = Path("data/2015-16_pbp.csv")
-OUTPUT_JSON = Path("data/frames/0021500622.frames.json")
+OUTPUT_JSON = Path("data/processed/{file_name}_processed.json")
 
 OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
 
