@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.patches import Circle, Rectangle, Arc
+
 
 def plot_frame(frame, team_colors=None):
     """
@@ -103,3 +105,109 @@ def draw_half_court(ax=None, color="black", lw=2, outer_lines=False, zorder=2):
         ax.add_patch(e)
 
     return ax
+
+def draw_half_court_ft(ax=None, color="black", lw=2, outer_lines=False, zorder=3,
+                       baseline_y=-4.75):
+    """
+    Draw half court in FEET for shot-chart coords:
+      rim at (0,0), baseline at y = baseline_y (~ -4.75 ft).
+    """
+    if ax is None:
+        ax = plt.gca()
+
+    # Anchors
+    hoop_x, hoop_y = 0.0, 0.0
+    half_court_y = baseline_y + 47.0  # half-court line
+
+    # Geometry (feet)
+    hoop_r = 0.75            # 9 in
+    backboard_w = 6.0
+    backboard_h = 0.0833     # thin
+    # Backboard plane is ~4 ft from baseline; in this coord rim is at y=0,
+    # so baseline is negative. This places board near y ~ -0.75 (looks right).
+    backboard_y = baseline_y + 4.0 - backboard_h
+
+    lane_w_outer = 16.0
+    lane_w_inner = 12.0
+    lane_len = 19.0
+    ft_y = baseline_y + lane_len
+    ft_circle_r = 6.0
+
+    restricted_r = 4.0
+
+    corner_3_x = 22.0
+    corner_3_top_y = baseline_y + 14.0
+
+    three_r = 23.75
+
+    # Patches
+    hoop = Circle((hoop_x, hoop_y), radius=hoop_r, linewidth=lw, color=color, fill=False)
+    backboard = Rectangle((-backboard_w/2, backboard_y), backboard_w, backboard_h,
+                          linewidth=lw, color=color)
+
+    outer_box = Rectangle((-lane_w_outer/2, baseline_y), lane_w_outer, lane_len,
+                          linewidth=lw, color=color, fill=False)
+    inner_box = Rectangle((-lane_w_inner/2, baseline_y), lane_w_inner, lane_len,
+                          linewidth=lw, color=color, fill=False)
+
+    top_ft = Arc((0, ft_y), 2*ft_circle_r, 2*ft_circle_r, theta1=0, theta2=180,
+                 linewidth=lw, color=color)
+    bottom_ft = Arc((0, ft_y), 2*ft_circle_r, 2*ft_circle_r, theta1=180, theta2=0,
+                    linewidth=lw, color=color, linestyle="dashed")
+
+    restricted = Arc((0, 0), 2*restricted_r, 2*restricted_r, theta1=0, theta2=180,
+                     linewidth=lw, color=color)
+
+    y_intersect = np.sqrt(max(three_r**2 - corner_3_x**2, 0))
+    theta = np.degrees(np.arctan2(y_intersect, corner_3_x))
+
+    three_arc = Arc((0, 0), 2*three_r, 2*three_r,
+                theta1=theta, theta2=180-theta,
+                linewidth=lw, color=color)
+    three_arc.set_clip_on(False)
+
+
+    for p in [hoop, backboard, outer_box, inner_box, top_ft, bottom_ft, restricted, three_arc]:
+        p.set_zorder(zorder)
+        ax.add_patch(p)
+
+    # Corner 3 lines (Line2D)
+    ax.plot([-corner_3_x, -corner_3_x], [baseline_y, corner_3_top_y],
+            linewidth=lw, color=color, zorder=zorder)
+    ax.plot([ corner_3_x,  corner_3_x], [baseline_y, corner_3_top_y],
+            linewidth=lw, color=color, zorder=zorder)
+
+    if outer_lines:
+        outer = Rectangle((-25, baseline_y), 50, 47.0, linewidth=lw, color=color, fill=False)
+        outer.set_zorder(zorder)
+        ax.add_patch(outer)
+
+    return ax
+
+def plot_player_map_on_court(m, key="density", title=None, alpha=0.85,
+                            baseline_y=-4.75, xlim=(-23.5, 23.5), ylim=(-5, 42)):
+    """
+    Plot a single player's map dict (from build_player_maps) on court.
+    """
+    grid = m[key].T
+    xedges, yedges = m["xedges"], m["yedges"]
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.imshow(
+        grid,
+        origin="lower",
+        extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+        aspect="equal",
+        alpha=alpha,
+        zorder=1
+    )
+
+    draw_half_court_ft(ax=ax, lw=2, zorder=3, baseline_y=baseline_y)
+
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    if title:
+        ax.set_title(title)
+    plt.show()
